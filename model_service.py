@@ -15,12 +15,16 @@ class TrainingResult:
     test_size: int
 
 
+LAST_TRAINING_METADATA: dict[str, Any] = {}
+
+
 def _train_with_sklearn(*, test_size: float, random_state: int, n_estimators: int) -> TrainingResult:
     """Train and evaluate a RandomForestClassifier with scikit-learn."""
 
     from sklearn.datasets import load_iris
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler
 
     data = load_iris()
     X_train, X_test, y_train, y_test = train_test_split(
@@ -31,14 +35,41 @@ def _train_with_sklearn(*, test_size: float, random_state: int, n_estimators: in
         stratify=data.target,
     )
 
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
     model = RandomForestClassifier(
-        n_estimators=n_estimators,
+        n_estimators=500,
+        max_depth=10,
+        min_samples_split=5,
+        bootstrap=True,
         random_state=random_state,
     )
-    model.fit(X_train, y_train)
+    model.fit(X_train_scaled, y_train)
+
+    LAST_TRAINING_METADATA.clear()
+    LAST_TRAINING_METADATA.update(
+        {
+            "framework": "sklearn",
+            "random_state": random_state,
+            "test_size": test_size,
+            "model": {
+                "n_estimators": 500,
+                "max_depth": 10,
+                "min_samples_split": 5,
+                "bootstrap": True,
+                "random_state": random_state,
+            },
+            "preprocessing": {
+                "scaler": "StandardScaler",
+                "random_state": None,
+            },
+        }
+    )
 
     return TrainingResult(
-        accuracy=model.score(X_test, y_test),
+        accuracy=model.score(X_test_scaled, y_test),
         train_size=len(X_train),
         test_size=len(X_test),
     )
@@ -96,6 +127,16 @@ def _train_without_sklearn(*, test_size: float, random_state: int) -> TrainingRe
     correct = sum(1 for features, label in test if predict(features) == label)
     accuracy = correct / len(test)
 
+    LAST_TRAINING_METADATA.clear()
+    LAST_TRAINING_METADATA.update(
+        {
+            "framework": "python-fallback",
+            "random_state": random_state,
+            "test_size": test_size,
+            "model": "nearest-centroid",
+        }
+    )
+
     return TrainingResult(
         accuracy=accuracy,
         train_size=len(train),
@@ -107,7 +148,7 @@ def train_model(
     *,
     test_size: float = 0.2,
     random_state: int = 42,
-    n_estimators: int = 200,
+    n_estimators: int = 500,
 ) -> TrainingResult:
     """Train and evaluate a classifier.
 
@@ -148,6 +189,7 @@ def create_app() -> Any:
                     "accuracy": result.accuracy,
                     "train_size": result.train_size,
                     "test_size": result.test_size,
+                    "metadata": LAST_TRAINING_METADATA,
                 }
             ),
             200,
