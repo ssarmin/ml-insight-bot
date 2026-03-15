@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -16,6 +17,7 @@ class TrainingResult:
 
 
 LAST_TRAINING_METADATA: dict[str, Any] = {}
+LOGGER = logging.getLogger(__name__)
 
 
 def _train_with_sklearn(*, test_size: float, random_state: int, n_estimators: int) -> TrainingResult:
@@ -157,16 +159,19 @@ def train_model(
     """
 
     try:
-        return _train_with_sklearn(
+        result = _train_with_sklearn(
             test_size=test_size,
             random_state=random_state,
             n_estimators=n_estimators,
         )
     except ModuleNotFoundError:
-        return _train_without_sklearn(
+        result = _train_without_sklearn(
             test_size=test_size,
             random_state=random_state,
         )
+
+    LOGGER.info("Updated accuracy: %.4f", result.accuracy)
+    return result
 
 
 def create_app() -> Any:
