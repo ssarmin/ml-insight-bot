@@ -12,7 +12,7 @@ def test_train_model_returns_training_result() -> None:
 def test_train_model_accuracy_above_threshold() -> None:
     result = train_model()
 
-    assert result.accuracy >= 0.95
+    assert result.accuracy >= 0.98
 
 
 def test_train_model_logs_updated_accuracy(caplog) -> None:
